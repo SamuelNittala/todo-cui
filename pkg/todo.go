@@ -1,14 +1,15 @@
 package todo
 
 import (
-  "strings"
-  "fmt"
+	"fmt"
 	"github.com/jroimartin/gocui"
+	"strings"
 )
 
 type Todo struct {
 	ID   int
 	Text string
+	Done bool
 }
 
 type State struct {
@@ -16,22 +17,56 @@ type State struct {
 	Index int
 }
 
-func DisplayTodos(g *gocui.Gui, state *State) error {
+func DisplayTodos(g *gocui.Gui, state *State, todos []Todo) error {
 	list_view, err := g.SetCurrentView("todoList")
 	if err != nil {
 		return err
 	}
 	list_view.Clear()
-	v, err := g.View("status")
-	v.Clear()
-	fmt.Fprintln(v, state.Index)
-	for index, todo := range state.Todos {
-		if index == state.Index {
-			fmt.Fprintf(list_view, ">> %d. %s\n", index + 1, todo.Text)
+	for index, todo := range todos {
+		if todo.Done {
+			if index == state.Index {
+				fmt.Fprintf(list_view, ">> %d. %s [x] \n", index+1, todo.Text)
+			} else {
+				fmt.Fprintf(list_view, "[x] %d. %s\n", index+1, todo.Text)
+			}
+		} else if index == state.Index {
+			if todo.Done {
+				fmt.Fprintf(list_view, ">> %d. %s [x] \n", index+1, todo.Text)
+			} else {
+				fmt.Fprintf(list_view, ">> %d. %s\n", index+1, todo.Text)
+			}
 		} else {
-			fmt.Fprintf(list_view, "%d. %s\n", index + 1, todo.Text)
+			fmt.Fprintf(list_view, "%d. %s\n", index+1, todo.Text)
 		}
 	}
+	return nil
+}
+
+func (state *State) ShowDoneTasks(g *gocui.Gui, v *gocui.View) error {
+	doneTodos := []Todo{}
+	for _, todo := range state.Todos {
+		if todo.Done {
+			doneTodos = append(doneTodos, todo)
+		}
+	}
+	DisplayTodos(g, state, doneTodos)
+	return nil
+}
+
+func (state *State) ShowAllTasks(g *gocui.Gui, v *gocui.View) error {
+	DisplayTodos(g, state, state.Todos)
+	return nil
+}
+
+func (state *State) ShowRemainingTasks(g *gocui.Gui, v *gocui.View) error {
+	remTodos := []Todo{}
+	for _, todo := range state.Todos {
+		if !todo.Done {
+			remTodos = append(remTodos, todo)
+		}
+	}
+	DisplayTodos(g, state, remTodos)
 	return nil
 }
 
@@ -44,7 +79,7 @@ func (state *State) AddTodo(g *gocui.Gui, v *gocui.View) error {
 		v.Clear()
 		g.SetViewOnBottom("todoInput")
 
-		err := DisplayTodos(g, state)
+		err := DisplayTodos(g, state, state.Todos)
 
 		if err != nil {
 			return err
@@ -54,11 +89,10 @@ func (state *State) AddTodo(g *gocui.Gui, v *gocui.View) error {
 	return nil
 }
 
-
 func (state *State) PrevTodo(g *gocui.Gui, v *gocui.View) error {
 	if state.Index > 0 {
 		state.Index--
-		err := DisplayTodos(g, state)
+		err := DisplayTodos(g, state, state.Todos)
 		if err != nil {
 			return err
 		}
@@ -69,7 +103,7 @@ func (state *State) PrevTodo(g *gocui.Gui, v *gocui.View) error {
 func (state *State) NextTodo(g *gocui.Gui, v *gocui.View) error {
 	if state.Index < len(state.Todos)-1 {
 		state.Index++
-		err := DisplayTodos(g, state)
+		err := DisplayTodos(g, state, state.Todos)
 		if err != nil {
 			return err
 		}
@@ -79,8 +113,6 @@ func (state *State) NextTodo(g *gocui.Gui, v *gocui.View) error {
 
 func (state *State) DeleteTodo(g *gocui.Gui, v *gocui.View) error {
 	list_view, err := g.SetCurrentView("todoList")
-	_vw, err := g.View("status")
-	_vw.Clear()
 	_, err = list_view.Line(state.Index)
 	if err != nil {
 		return err
@@ -88,12 +120,16 @@ func (state *State) DeleteTodo(g *gocui.Gui, v *gocui.View) error {
 
 	state.Todos = removeElementFromAnArray(state.Todos, state.Index)
 	state.Index = 0
-	fmt.Fprintln(_vw, state.Todos)
-
-	err = DisplayTodos(g, state)
+	err = DisplayTodos(g, state, state.Todos)
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (state *State) MarkToDoAsDone(g *gocui.Gui, v *gocui.View) error {
+	state.Todos[state.Index].Done = true
+	DisplayTodos(g, state, state.Todos)
 	return nil
 }
 

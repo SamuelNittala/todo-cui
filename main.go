@@ -16,7 +16,7 @@ func main() {
 	defer g.Close()
 
 	state := todo.State{
-		Todos: []todo.Todo{{1, "Buy groceries"}, {2, "Do laundry"}, {3, "Clean the house"}},
+		Todos: []todo.Todo{{1, "Buy groceries", false}, {2, "Do laundry", false}, {3, "Clean the house", false}},
 		Index: 0,
 	}
 
@@ -37,7 +37,7 @@ func main() {
 func layout(g *gocui.Gui, state *todo.State) error {
 	maxX, maxY := g.Size()
 
-	if v, err := g.SetView("todoList", 0, 0, maxX-1, maxY-3); err != nil {
+	if v, err := g.SetView("todoList", 0, 0, maxX/2, maxY-3); err != nil {
 		v.Title = "Todo-List"
 		if err != gocui.ErrUnknownView {
 			return err
@@ -64,11 +64,13 @@ func layout(g *gocui.Gui, state *todo.State) error {
 		g.SetViewOnBottom("todoInput")
 	}
 
-	if v, err := g.SetView("status", 0, maxY-3, maxX-1, maxY-1); err != nil {
+	if v, err := g.SetView("status", 0, maxY-6, maxX-1, maxY-1); err != nil {
 		if err != gocui.ErrUnknownView {
 			return err
 		}
-		fmt.Fprintln(v, "Press <a> to add a new todo. Press <q> to quit.")
+		fmt.Fprintln(v, "Press <a> to add a new todo. <m> to mark as done, <d> to delete Press <q> to quit.")
+		fmt.Fprintln(v, "\n")
+		fmt.Fprintln(v, "Press <F1> to show all todos. <F2> to show done todos, <F3> to show remainig todos.")
 	}
 
 	return nil
@@ -80,6 +82,22 @@ func keybindings(g *gocui.Gui, state *todo.State) error {
 	}
 
 	if err := g.SetKeybinding("todoList", 'd', gocui.ModNone, state.DeleteTodo); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("todoList", 'm', gocui.ModNone, state.MarkToDoAsDone); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("todoList", gocui.KeyF1, gocui.ModNone, state.ShowAllTasks); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("todoList", gocui.KeyF2, gocui.ModNone, state.ShowDoneTasks); err != nil {
+		return err
+	}
+
+	if err := g.SetKeybinding("todoList", gocui.KeyF3, gocui.ModNone, state.ShowRemainingTasks); err != nil {
 		return err
 	}
 
